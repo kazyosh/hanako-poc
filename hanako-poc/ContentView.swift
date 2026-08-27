@@ -24,86 +24,94 @@ struct Checkbox: View {
 }
 
 struct ContentView: View {
-    @State private var morning = Settings().morning
-    @State private var morningPrompt = Settings().morningPrompt
-    @State private var afternoon = Settings().afternoon
-    @State private var afternoonPrompt = Settings().afternoonPrompt
-    @State private var evening = Settings().evening
-    @State private var eveningPrompt = Settings().eveningPrompt
+    @State private var morningPrompt = Hanako.shared.settings.morningPrompt
+    @State private var afternoonPrompt = Hanako.shared.settings.afternoonPrompt
+    @State private var eveningPrompt = Hanako.shared.settings.eveningPrompt
     @State private var isOn = true
+    @State private var isShowingSettings = false
     @State private var selectedOption = "Claude"
 
     private let options = ["Claude", "ChatGPT"]
 
     var body: some View {
-        VStack {
-            Text("はなこさん")
-                .font(.largeTitle)
-            HStack {
-                ForEach(options, id: \.self) { option in
-                    Checkbox(text: option, isSelected: $selectedOption, onTap: {
-                        selectedOption = option
-                    })
+        NavigationStack {
+            VStack {
+                HStack {
+                    ForEach(options, id: \.self) { option in
+                        Checkbox(text: option, isSelected: $selectedOption, onTap: {
+                            selectedOption = option
+                        })
+                    }
+                }
+                Text("話しかける内容を設定してください")
+                    .font(.default).padding()
+                Text("朝")
+                    .font(.title2)
+                TextField(
+                    "prompt",
+                    text: $morningPrompt,
+                    axis: .vertical
+                )
+                Button {
+                    var settings = Hanako.shared.settings
+                    settings.morningPrompt = morningPrompt
+                    settings.save()
+                    talkRightNow(timeOfDay: .morning)
+                } label: {
+                    Text("今話す")
+                }
+                Divider()
+                Text("昼").font(.title3)
+                TextField(
+                    "prompt",
+                    text: $afternoonPrompt,
+                    axis: .vertical
+                )
+                Button {
+                    var settings = Hanako.shared.settings
+                    settings.afternoonPrompt = afternoonPrompt
+                    settings.save()
+                    talkRightNow(timeOfDay: .afternoon)
+                } label: {
+                    Text("今話す")
+                }
+                Divider()
+                Text("夕").font(.title3)
+                TextField(
+                    "prompt",
+                    text: $eveningPrompt,
+                    axis: .vertical
+                )
+                Button {
+                    var settings = Hanako.shared.settings
+                    settings.eveningPrompt = eveningPrompt
+                    settings.save()
+                    talkRightNow(timeOfDay: .evening)
+                } label: {
+                    Text("今話す")
                 }
             }
-            Text("話しかける内容、時刻を設定してください")
-                .font(.default).padding()
-            Text("朝")
-                .font(.title2)
-            DatePicker("時刻", selection: $morning, displayedComponents: .hourAndMinute)
-            TextField(
-                "prompt",
-                text: $morningPrompt,
-                axis: .vertical
-            )
-            Button {
-                talkRightNow(timeOfDay: .morning)
-            } label: {
-                Text("今話す")
+            .padding()
+            .navigationTitle("はなこさん")
+            .toolbar {
+                 ToolbarItem(placement: .topBarTrailing) {
+                     Button {
+                         isShowingSettings = true
+                     } label: {
+                         Image(systemName: "gearshape")
+                     }
+                 }
+             }
+            .sheet(isPresented: $isShowingSettings) {
+                SettingsView(conversationManager: Hanako.shared.manager)
             }
-            Divider()
-            Text("昼").font(.title3)
-            DatePicker("時刻", selection: $afternoon, displayedComponents: .hourAndMinute)
-                .padding()
-            TextField(
-                "prompt",
-                text: $afternoonPrompt,
-                axis: .vertical
-            )
-            Button {
-                talkRightNow(timeOfDay: .afternoon)
-            } label: {
-                Text("今話す")
-            }
-            Divider()
-            Text("夕").font(.title3)
-            DatePicker("時刻", selection: $evening, displayedComponents: .hourAndMinute)
-                .padding()
-            TextField(
-                "prompt",
-                text: $eveningPrompt,
-                axis: .vertical
-            )
-            Button {
-                talkRightNow(timeOfDay: .evening)
-            } label: {
-                Text("今話す")
-            }
-            Divider()
-            Button {
-                updateSettings()
-            } label: {
-                Text("決定")
-            }
-
         }
-        .padding()
+
     }
     
     func talkRightNow(timeOfDay: TimeOfDay) {
         Task {
             do {
-                updateSettings()
                 if selectedOption == "Claude" {
                     Hanako.shared.useClaudeAPI()
                 }
@@ -113,16 +121,6 @@ struct ContentView: View {
                 await Hanako.shared.startGreeting(timeOfDay: timeOfDay)
             }
         }
-    }
-
-    func updateSettings() {
-        var settings = Settings()
-        settings.morning = morning
-        settings.afternoon = afternoon
-        settings.evening = evening
-        settings.morningPrompt = morningPrompt
-        settings.afternoonPrompt = afternoonPrompt
-        settings.eveningPrompt = eveningPrompt
     }
 }
 

@@ -89,4 +89,8 @@ iOSInjectionProject/
 
 .DS_Store
 
+# secret
+
+Secrets.swift
+
 # End of https://www.toptal.com/developers/gitignore/api/swift

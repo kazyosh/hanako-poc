@@ -6,7 +6,7 @@ class SpeechRecognizer: NSObject {
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
     
-    private var silenceThreshold: Float = -60.0
+    var silenceThreshold: Float = -60.0
     private let endOfSpeechSilenceDuration: TimeInterval = 1.5
     private var silenceTimer: Timer?
     private var hasDetectedSpeech = false

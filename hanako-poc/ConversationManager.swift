@@ -12,13 +12,35 @@ import Combine
 class ConversationManager: ObservableObject {
     @Published var messages: [ChatMessage] = []
     @Published var isConversationActive = true
-    
+//    @Published var silenceThreshold: Float = -60.0 {
+//        didSet {
+//            speechRecognizer.silenceThreshold = silenceThreshold
+//        }
+//    }
+//    @Published var endOfSpeechSilenceDuration: TimeInterval = -60.0 {
+//        didSet {
+//            speechRecognizer.endOfSpeechSilenceDuration = endOfSpeechSilenceDuration
+//        }
+//    }
+//    @Published var conversationTimeoutDuration: TimeInterval = 20.0 {
+//        didSet {
+//            speechRecognizer.conversationTimeoutDuration = conversationTimeoutDuration
+//        }
+//    }
     private var llmProvider: LLMProvider
-    private let speechRecognizer = SpeechRecognizer()
+//    private let speechRecognizer = SpeechRecognizer()
+    private let speechRecognizer = GoogleSpeechRecognizer(apiKey: AppConfig.ttsAPIKey)
     private let speaker = GreetingSpeaker()
     
     init(llmProvider: LLMProvider) {
         self.llmProvider = llmProvider
+//        speechRecognizer.silenceThreshold = silenceThreshold
+    }
+    
+    func applySettings(_ settings: AppSettings) {
+        speechRecognizer.silenceThreshold = settings.silenceThreshold
+        speechRecognizer.endOfSpeechSilenceDuration = settings.endOfSpeechSilenceDuration
+        speechRecognizer.conversationTimeoutDuration = settings.conversationTimeoutDuration
     }
 
     func switchProvider(to newProvider: LLMProvider) {
