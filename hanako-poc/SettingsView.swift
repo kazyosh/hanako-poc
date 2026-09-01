@@ -39,9 +39,6 @@ struct HourAndMinuteRow: View {
 
 struct SettingsView: View {
     @ObservedObject var conversationManager: ConversationManager
-//    @State private var morning = Settings().morning
-//    @State private var afternoon = Settings().afternoon
-//    @State private var evening = Settings().evening
     @Environment(\.dismiss) private var dismiss
 
     // 保存ボタンが押されるまではこちらの値だけを操作する
@@ -94,43 +91,40 @@ struct SettingsView: View {
                         description: "この時間ユーザーが話しかけてこない場合、会話を終了します。"
                     )
                 }
-                Section {
-                    VStack {
-                        HourAndMinuteRow(title: "朝", value: Binding(
-                            get: { draft.morning },
-                            set: { draft.morning = $0 }
-                        ))
-                        HourAndMinuteRow(title: "昼", value: Binding(
-                            get: { draft.afternoon },
-                            set: { draft.afternoon = $0 }
-                        ))
-                        HourAndMinuteRow(title: "夕", value: Binding(
-                            get: { draft.evening },
-                            set: { draft.evening = $0 }
-                        ))
-//                        DatePicker("朝", selection: draft.morning, displayedComponents: .hourAndMinute)
-//                            .onChange(of: morning, {
-//                                var settings = Settings()
-//                                settings.morning = morning
-//                            })
-//                            .padding()
-//                        DatePicker("昼", selection: draft.afternoon, displayedComponents: .hourAndMinute)
-//                            .onChange(of: afternoon, {
-//                                var settings = Settings()
-//                                settings.afternoon = afternoon
-//                            })
-//                            .padding()
-//                        DatePicker("夕", selection: draft.evening, displayedComponents: .hourAndMinute)
-//                            .onChange(of: evening, {
-//                                var settings = Settings()
-//                                settings.evening = evening
-//                            })
-//                            .padding()
+                Section("毎日の声かけ") {
+                    Toggle("有効にする", isOn: $draft.isDailyGreetingEnabled)
+                    
+                    if draft.isDailyGreetingEnabled {
+                        ForEach($draft.greetingTimes) { $greetingTime in
+                            HStack {
+                                Text(greetingTime.label)
+                                    .frame(width: 60, alignment: .leading)
+                                
+                                Spacer()
+                                
+                                DatePicker(
+                                    "",
+                                    selection: Binding(
+                                        get: {
+                                            var components = DateComponents()
+                                            components.hour = greetingTime.hour
+                                            components.minute = greetingTime.minute
+                                            return Calendar.current.date(from: components) ?? Date()
+                                        },
+                                        set: { newDate in
+                                            let components = Calendar.current.dateComponents([.hour, .minute], from: newDate)
+                                            greetingTime.hour = components.hour ?? greetingTime.hour
+                                            greetingTime.minute = components.minute ?? greetingTime.minute
+                                        }
+                                    ),
+                                    displayedComponents: .hourAndMinute
+                                )
+                                .labelsHidden()
+                            }
+                        }
                     }
-                } header: {
-                    Text("発話時刻設定")
                 }
-                
+
                 Section {
                     Button {
                         Hanako.shared.settings = draft

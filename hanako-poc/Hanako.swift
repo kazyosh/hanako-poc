@@ -8,6 +8,7 @@
 import Foundation
 import AVFoundation
 import UserNotifications
+import Combine
 
 enum TimeOfDay {
     case morning
@@ -30,6 +31,8 @@ let llmClaudeProvider: LLMProvider = ClaudeProvider(apiKey: AppConfig.claudeAPIK
 let llmOpenAIProvider: LLMProvider = OpenAIProvider(apiKey: AppConfig.openAIAPIKey)
 
 class Hanako {
+    @Published var messages: [ChatMessage] = []
+    @Published var isConversationActive = true
     var llmProvider = llmClaudeProvider
     static let shared = Hanako()
     let promptBase = """
@@ -43,11 +46,17 @@ class Hanako {
     public var settings: AppSettings {
         didSet {
             settings.save()
+            scheduleDailyGreetingTimer()
         }
     }
-
+    private var dailyGreetingTimer: Timer?
+    // どの時刻(label)まで今日発火済みかを記録する
+    private var firedGreetingLabelsToday: Set<String> = []
+    private var lastCheckedDay: Date?
+    
     private init() {
         settings = AppSettings.load()
+        scheduleDailyGreetingTimer()
     }
     
     func useClaudeAPI() {
@@ -57,16 +66,12 @@ class Hanako {
         manager.switchProvider(to: llmOpenAIProvider)
     }
 
-    func startGreeting(timeOfDay: TimeOfDay) async {
-        var prompt = settings.morningPrompt
-        switch timeOfDay {
-        case .morning:
-            prompt = settings.morningPrompt
-        case .afternoon:
-            prompt = settings.afternoonPrompt
-        case .evening:
-            prompt = settings.eveningPrompt
-        }
+    func startGreeting(for greetingTime: GreetingTime) async {
+        guard !isConversationActive || messages.isEmpty else { return }
+        
+        isConversationActive = true
+        let prompt = greetingPrompt(for: greetingTime.label)
+        messages = [ChatMessage(role: .user, content: prompt)]
         do {
             // 1. 挨拶を開始(LLMが最初に話しかける)
             await manager.start(prompt: "\(promptBase)\n\(prompt)")
@@ -76,19 +81,78 @@ class Hanako {
         catch {
             print("エラー: \(error)")
         }
-
     }
 
-    func scheduleGreeting(time: Date, identifier: String) {
-        let content = UNMutableNotificationContent()
-        content.title = "声掛け"
-        content.sound = .default
-        let calendar = Calendar.current
-        let components = calendar.dateComponents([.year, .month, .day, .hour, .minute, .second], from: time)
+    private func greetingPrompt(for label: String) -> String {
+        switch label {
+        case "朝":
+            return settings.morningPrompt
+        case "昼":
+            return settings.afternoonPrompt
+        case "夕方":
+            return settings.eveningPrompt
+        default:
+            return settings.afternoonPrompt
+        }
+    }
 
-        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
-        let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+    func startGreeting(timeOfDay: TimeOfDay) async {
+        switch timeOfDay {
+        case .morning:
+            await startGreeting(for: settings.greetingTimes[0])
+        case .afternoon:
+            await startGreeting(for: settings.greetingTimes[1])
+        case .evening:
+            await startGreeting(for: settings.greetingTimes[3])
+        }
+    }
+    
+    private func scheduleDailyGreetingTimer() {
+        dailyGreetingTimer?.invalidate()
+        dailyGreetingTimer = nil
         
-        UNUserNotificationCenter.current().add(request)
+        guard settings.isDailyGreetingEnabled, !settings.greetingTimes.isEmpty else { return }
+        
+        let timer = Timer(timeInterval: 60, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.checkAndTriggerGreetings()
+            }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        dailyGreetingTimer = timer
+        
+        checkAndTriggerGreetings()
+    }
+    
+    private func checkAndTriggerGreetings() {
+        let calendar = Calendar.current
+        let now = Date()
+        
+        // 日付が変わったら発火済み記録をリセットする
+        if let lastDay = lastCheckedDay, !calendar.isDate(lastDay, inSameDayAs: now) {
+            firedGreetingLabelsToday.removeAll()
+        }
+        lastCheckedDay = now
+        
+        let nowComponents = calendar.dateComponents([.hour, .minute], from: now)
+        
+        for greetingTime in settings.greetingTimes {
+            guard nowComponents.hour == greetingTime.hour,
+                  nowComponents.minute == greetingTime.minute else {
+                continue
+            }
+            
+            // 同じ時刻区分が今日すでに発火済みならスキップ
+            guard !firedGreetingLabelsToday.contains(greetingTime.label) else {
+                continue
+            }
+            
+            firedGreetingLabelsToday.insert(greetingTime.label)
+            
+            Task {
+                await startGreeting(for: greetingTime)
+            }
+            break // 同時刻に複数該当することは通常ないが、念のため1件処理したら抜ける
+        }
     }
 }
