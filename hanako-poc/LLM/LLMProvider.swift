@@ -12,15 +12,6 @@ enum LLMError: Error {
     case apiError(String)
 }
 
-struct ChatMessage {
-    enum Role: String {
-        case user
-        case assistant
-    }
-    let role: Role
-    let content: String
-}
-
 protocol LLMProvider {
     func generate(messages: [ChatMessage]) async throws -> String
 }

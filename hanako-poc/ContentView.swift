@@ -94,7 +94,14 @@ struct ContentView: View {
             .padding()
             .navigationTitle("はなこさん")
             .toolbar {
-                 ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .topBarLeading) {
+                    NavigationLink {
+                        HistoryView()
+                    } label: {
+                        Image(systemName: "clock.arrow.circlepath")
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
                      Button {
                          isShowingSettings = true
                      } label: {

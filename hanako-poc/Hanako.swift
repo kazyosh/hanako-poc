@@ -71,7 +71,7 @@ class Hanako {
         
         isConversationActive = true
         let prompt = greetingPrompt(for: greetingTime.label)
-        messages = [ChatMessage(role: .user, content: prompt)]
+        messages = [ChatMessage(role: .user, content: prompt, isVisible: false)]
         do {
             // 1. 挨拶を開始(LLMが最初に話しかける)
             await manager.start(prompt: "\(promptBase)\n\(prompt)")
@@ -103,7 +103,7 @@ class Hanako {
         case .afternoon:
             await startGreeting(for: settings.greetingTimes[1])
         case .evening:
-            await startGreeting(for: settings.greetingTimes[3])
+            await startGreeting(for: settings.greetingTimes[2])
         }
     }
     

@@ -12,29 +12,15 @@ import Combine
 class ConversationManager: ObservableObject {
     @Published var messages: [ChatMessage] = []
     @Published var isConversationActive = true
-//    @Published var silenceThreshold: Float = -60.0 {
-//        didSet {
-//            speechRecognizer.silenceThreshold = silenceThreshold
-//        }
-//    }
-//    @Published var endOfSpeechSilenceDuration: TimeInterval = -60.0 {
-//        didSet {
-//            speechRecognizer.endOfSpeechSilenceDuration = endOfSpeechSilenceDuration
-//        }
-//    }
-//    @Published var conversationTimeoutDuration: TimeInterval = 20.0 {
-//        didSet {
-//            speechRecognizer.conversationTimeoutDuration = conversationTimeoutDuration
-//        }
-//    }
     private var llmProvider: LLMProvider
-//    private let speechRecognizer = SpeechRecognizer()
+    //    private let speechRecognizer = SpeechRecognizer()
     private let speechRecognizer = GoogleSpeechRecognizer(apiKey: AppConfig.ttsAPIKey)
     private let speaker = GreetingSpeaker()
-    
+    private let historyStore = ConversationHistoryStore.shared
+
     init(llmProvider: LLMProvider) {
         self.llmProvider = llmProvider
-//        speechRecognizer.silenceThreshold = silenceThreshold
+        loadTodaysHistory()
     }
     
     func applySettings(_ settings: AppSettings) {
@@ -42,15 +28,15 @@ class ConversationManager: ObservableObject {
         speechRecognizer.endOfSpeechSilenceDuration = settings.endOfSpeechSilenceDuration
         speechRecognizer.conversationTimeoutDuration = settings.conversationTimeoutDuration
     }
-
+    
     func switchProvider(to newProvider: LLMProvider) {
         llmProvider = newProvider
     }
-
+    
     // 声掛けを開始する(会話のきっかけ)
     func start(prompt: String) async {
         isConversationActive = true
-        messages = [ChatMessage(role: .user, content: prompt)]
+        messages = [ChatMessage(role: .user, content: prompt, isVisible: false)]
         await respond()
         await beginListeningLoop()
     }
@@ -125,7 +111,7 @@ class ConversationManager: ObservableObject {
         
         return result
     }
-
+    
     // LLMに送信し、応答を音声で再生
     private func respond() async {
         do {
@@ -138,12 +124,25 @@ class ConversationManager: ObservableObject {
             print("応答生成エラー: \(error)")
         }
         trimHistoryIfNeeded()
+        saveHistory()
     }
-
+    
     private func trimHistoryIfNeeded() {
         let maxMessages = 20
         if messages.count > maxMessages {
             messages = Array(messages.suffix(maxMessages))
         }
+    }
+    
+    // MARK: - 履歴の読み込み・保存
+    
+    private func loadTodaysHistory() {
+        if let record = historyStore.load(for: Date()) {
+            messages = record.messages
+        }
+    }
+    
+    private func saveHistory() {
+        historyStore.save(messages: messages, for: Date())
     }
 }
