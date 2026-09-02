@@ -122,6 +122,7 @@ class ConversationManager: ObservableObject {
             await speaker.speak(text: sanitized)
         } catch {
             print("応答生成エラー: \(error)")
+            await handleResponseError()
         }
         trimHistoryIfNeeded()
         saveHistory()
@@ -133,7 +134,13 @@ class ConversationManager: ObservableObject {
             messages = Array(messages.suffix(maxMessages))
         }
     }
-    
+
+    private func handleResponseError() async {
+        let fallbackMessage = "ごめんなさい、うまく聞き取れませんでした"
+        messages.append(ChatMessage(role: .assistant, content: fallbackMessage))
+        await speaker.speak(text: fallbackMessage)
+    }
+
     // MARK: - 履歴の読み込み・保存
     
     private func loadTodaysHistory() {
