@@ -7,7 +7,11 @@
 
 import AVFoundation
 
-class GreetingSpeaker: NSObject {
+protocol GreetingSpeaking {
+    func speak(text: String) async
+}
+
+class GreetingSpeaker: NSObject, GreetingSpeaking {
     private var audioPlayer: AVAudioPlayer?
     private var continuation: CheckedContinuation<Void, Error>?
     

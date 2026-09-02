@@ -1,17 +1,29 @@
 import Speech
 
-class SpeechRecognizer: NSObject {
+protocol SpeechRecognizing {
+    func requestAuthorization() async -> Bool
+    func startListening(
+        onResult: @escaping (String) -> Void,
+        onConversationTimeout: @escaping () -> Void
+    ) throws
+    func stopListening()
+    var silenceThreshold: Float { get set }
+    var endOfSpeechSilenceDuration: TimeInterval { get set }
+    var conversationTimeoutDuration: TimeInterval { get set }
+}
+
+class SpeechRecognizer: NSObject, SpeechRecognizing {
     private let audioEngine = AVAudioEngine()
     private let speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "ja-JP"))
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
     
     var silenceThreshold: Float = -60.0
-    private let endOfSpeechSilenceDuration: TimeInterval = 1.5
+    var endOfSpeechSilenceDuration: TimeInterval = 1.5
     private var silenceTimer: Timer?
     private var hasDetectedSpeech = false
     
-    private let conversationTimeoutDuration: TimeInterval = 20.0
+    var conversationTimeoutDuration: TimeInterval = 20.0
     private var conversationTimeoutTimer: Timer?
     
     private var onResult: ((String) -> Void)?

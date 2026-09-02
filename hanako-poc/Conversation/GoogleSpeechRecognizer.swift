@@ -7,7 +7,7 @@
 
 import AVFoundation
 
-class GoogleSpeechRecognizer: NSObject {
+class GoogleSpeechRecognizer: NSObject, SpeechRecognizing {
     private let audioEngine = AVAudioEngine()
     private let apiKey: String
     

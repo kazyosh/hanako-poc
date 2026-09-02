@@ -14,12 +14,14 @@ class ConversationManager: ObservableObject {
     @Published var isConversationActive = true
     private var llmProvider: LLMProvider
     //    private let speechRecognizer = SpeechRecognizer()
-    private let speechRecognizer = GoogleSpeechRecognizer(apiKey: AppConfig.ttsAPIKey)
-    private let speaker = GreetingSpeaker()
+    private var speechRecognizer: SpeechRecognizing
+    private let speaker: GreetingSpeaking
     private let historyStore = ConversationHistoryStore.shared
 
-    init(llmProvider: LLMProvider) {
+    init(llmProvider: LLMProvider, speechRecognizer: SpeechRecognizing, speaker: GreetingSpeaking) {
         self.llmProvider = llmProvider
+        self.speechRecognizer = speechRecognizer
+        self.speaker = speaker
         loadTodaysHistory()
     }
     

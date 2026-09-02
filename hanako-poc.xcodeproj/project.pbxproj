@@ -6,8 +6,19 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXContainerItemProxy section */
+		15D331203047A6900032FD30 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 154ADD673036D36600744835 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 154ADD6E3036D36600744835;
+			remoteInfo = "hanako-poc";
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		154ADD6F3036D36600744835 /* hanako-poc.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "hanako-poc.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		15D3311C3047A6900032FD30 /* hanako-pocTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "hanako-pocTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -18,6 +29,19 @@
 			);
 			target = 154ADD6E3036D36600744835 /* hanako-poc */;
 		};
+		15D3312F3047A8350032FD30 /* Exceptions for "hanako-poc" folder in "hanako-pocTests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				AppSettings.swift,
+				Conversation/ChatMessage.swift,
+				Conversation/ConversationHistoryStore.swift,
+				Conversation/ConversationManager.swift,
+				Conversation/GreetingSpeaker.swift,
+				Conversation/SpeechRecognizer.swift,
+				LLM/LLMProvider.swift,
+			);
+			target = 15D3311B3047A6900032FD30 /* hanako-pocTests */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -25,8 +49,14 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				154ADDA5303C1A9200744835 /* Exceptions for "hanako-poc" folder in "hanako-poc" target */,
+				15D3312F3047A8350032FD30 /* Exceptions for "hanako-poc" folder in "hanako-pocTests" target */,
 			);
 			path = "hanako-poc";
+			sourceTree = "<group>";
+		};
+		15D3311D3047A6900032FD30 /* hanako-pocTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "hanako-pocTests";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -39,12 +69,20 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		15D331193047A6900032FD30 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		154ADD663036D36600744835 = {
 			isa = PBXGroup;
 			children = (
+				15D3311D3047A6900032FD30 /* hanako-pocTests */,
 				154ADD703036D36600744835 /* Products */,
 				154ADD713036D36600744835 /* hanako-poc */,
 			);
@@ -54,6 +92,7 @@
 			isa = PBXGroup;
 			children = (
 				154ADD6F3036D36600744835 /* hanako-poc.app */,
+				15D3311C3047A6900032FD30 /* hanako-pocTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -83,6 +122,29 @@
 			productReference = 154ADD6F3036D36600744835 /* hanako-poc.app */;
 			productType = "com.apple.product-type.application";
 		};
+		15D3311B3047A6900032FD30 /* hanako-pocTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 15D331243047A6900032FD30 /* Build configuration list for PBXNativeTarget "hanako-pocTests" */;
+			buildPhases = (
+				15D331183047A6900032FD30 /* Sources */,
+				15D331193047A6900032FD30 /* Frameworks */,
+				15D3311A3047A6900032FD30 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				15D331213047A6900032FD30 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				15D3311D3047A6900032FD30 /* hanako-pocTests */,
+			);
+			name = "hanako-pocTests";
+			packageProductDependencies = (
+			);
+			productName = "hanako-pocTests";
+			productReference = 15D3311C3047A6900032FD30 /* hanako-pocTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -95,6 +157,10 @@
 				TargetAttributes = {
 					154ADD6E3036D36600744835 = {
 						CreatedOnToolsVersion = 26.5;
+					};
+					15D3311B3047A6900032FD30 = {
+						CreatedOnToolsVersion = 26.5;
+						TestTargetID = 154ADD6E3036D36600744835;
 					};
 				};
 			};
@@ -113,12 +179,20 @@
 			projectRoot = "";
 			targets = (
 				154ADD6E3036D36600744835 /* hanako-poc */,
+				15D3311B3047A6900032FD30 /* hanako-pocTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		154ADD6D3036D36600744835 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		15D3311A3047A6900032FD30 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -135,7 +209,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		15D331183047A6900032FD30 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		15D331213047A6900032FD30 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 154ADD6E3036D36600744835 /* hanako-poc */;
+			targetProxy = 15D331203047A6900032FD30 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		154ADD783036D36700744835 /* Debug */ = {
@@ -341,6 +430,50 @@
 			};
 			name = Release;
 		};
+		15D331223047A6900032FD30 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 2W9KGG8A79;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.44da.hanako-pocTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/hanako-poc.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/hanako-poc";
+			};
+			name = Debug;
+		};
+		15D331233047A6900032FD30 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 2W9KGG8A79;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.44da.hanako-pocTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/hanako-poc.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/hanako-poc";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -358,6 +491,15 @@
 			buildConfigurations = (
 				154ADD7B3036D36700744835 /* Debug */,
 				154ADD7C3036D36700744835 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		15D331243047A6900032FD30 /* Build configuration list for PBXNativeTarget "hanako-pocTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				15D331223047A6900032FD30 /* Debug */,
+				15D331233047A6900032FD30 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

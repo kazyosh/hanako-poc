@@ -42,7 +42,8 @@ class Hanako {
     ・挨拶の言葉のみを出力し、説明や前置きは不要
     """
     private var audioPlayer: AVAudioPlayer?
-    public var manager = ConversationManager(llmProvider: llmClaudeProvider)
+    public var manager = ConversationManager(llmProvider: llmClaudeProvider,
+                                             speechRecognizer: GoogleSpeechRecognizer(apiKey: AppConfig.ttsAPIKey),    speaker: GreetingSpeaker())
     public var settings: AppSettings {
         didSet {
             settings.save()
