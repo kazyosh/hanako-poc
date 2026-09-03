@@ -11,7 +11,6 @@ class GoogleSpeechRecognizer: NSObject, SpeechRecognizing {
     private let audioEngine = AVAudioEngine()
     private let apiKey: String
     
-    // 音声データの蓄積
     private var audioBuffer = Data()
     private var audioConverter: AVAudioConverter?
     private let targetFormat = AVAudioFormat(
@@ -21,22 +20,22 @@ class GoogleSpeechRecognizer: NSObject, SpeechRecognizing {
         interleaved: true
     )!
     
-    // 発話区切りの無音検出
     var silenceThreshold: Float = -60.0
     var endOfSpeechSilenceDuration: TimeInterval = 1.5
     private var silenceTimer: Timer?
     private var hasDetectedSpeech = false
     
-    // 会話全体の無音検出
     var conversationTimeoutDuration: TimeInterval = 20.0
     private var conversationTimeoutTimer: Timer?
-
-    // 録音の最大許容時間(Google Cloud STT同期APIの制限は60秒)
+    
     private let maxRecordingDuration: TimeInterval = 45.0
     private var maxRecordingTimer: Timer?
-
-    private var onResult: ((String) -> Void)?
+    
+    private var onResult: ((String, ConversationTurnLog) -> Void)?
     private var onConversationTimeout: (() -> Void)?
+    
+    // 発話区間の計測用(1発話ごとに生成)
+    private var currentTurnLog: ConversationTurnLog?
     
     private var isListening = false
     private var isTapInstalled = false
@@ -51,7 +50,7 @@ class GoogleSpeechRecognizer: NSObject, SpeechRecognizing {
     }
     
     func startListening(
-        onResult: @escaping (String) -> Void,
+        onResult: @escaping (String, ConversationTurnLog) -> Void,
         onConversationTimeout: @escaping () -> Void = {}
     ) throws {
         if isListening {
@@ -63,6 +62,7 @@ class GoogleSpeechRecognizer: NSObject, SpeechRecognizing {
         silenceTimer = nil
         hasDetectedSpeech = false
         audioBuffer.removeAll()
+        currentTurnLog = nil
         
         self.onResult = onResult
         self.onConversationTimeout = onConversationTimeout
@@ -106,7 +106,6 @@ class GoogleSpeechRecognizer: NSObject, SpeechRecognizing {
         var error: NSError?
         let inputBlock: AVAudioConverterInputBlock = { _, outStatus in
             if hasProvidedData {
-                // 2回目以降の呼び出しでは「これ以上データはない」ことを伝える
                 outStatus.pointee = .noDataNow
                 return nil
             }
@@ -146,7 +145,12 @@ class GoogleSpeechRecognizer: NSObject, SpeechRecognizing {
             guard let self = self else { return }
             
             if db > self.silenceThreshold {
-                print("音を検出 → タイムアウトをリセット (db: \(db))")
+                if !self.hasDetectedSpeech {
+                    // 発話を検知した最初の瞬間 = このターンのログを開始
+                    let log = ConversationTurnLog()
+                    self.currentTurnLog = log
+                    log.start(.stt)
+                }
                 self.hasDetectedSpeech = true
                 self.silenceTimer?.invalidate()
                 self.silenceTimer = nil
@@ -176,18 +180,21 @@ class GoogleSpeechRecognizer: NSObject, SpeechRecognizing {
 
     private func finishListeningAndTranscribe() {
         let capturedAudio = audioBuffer
+        let log = currentTurnLog
         stopListening()
         
-        guard !capturedAudio.isEmpty else { return }
+        guard !capturedAudio.isEmpty, let log = log else { return }
         
         Task { [weak self] in
             guard let self = self else { return }
             do {
                 let text = try await self.transcribe(audioData: capturedAudio)
+                log.end(.stt)
                 if !text.isEmpty {
-                    self.onResult?(text)
+                    self.onResult?(text, log)
                 }
             } catch {
+                log.end(.stt)
                 print("Google Cloud STTエラー: \(error)")
             }
         }
@@ -214,6 +221,8 @@ class GoogleSpeechRecognizer: NSObject, SpeechRecognizing {
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
         
+        // STT区間のうち、実際のHTTP通信部分をRTTとして分けて計測したい場合は
+        // currentTurnLog?.start(.networkLLM) のような専用フェーズを別途追加してください
         let (data, response) = try await URLSession.shared.data(for: request)
         
         guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {

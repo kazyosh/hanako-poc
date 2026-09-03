@@ -35,6 +35,7 @@
 				AppSettings.swift,
 				Conversation/ChatMessage.swift,
 				Conversation/ConversationHistoryStore.swift,
+				Conversation/ConversationLogger.swift,
 				Conversation/ConversationManager.swift,
 				Conversation/GreetingSpeaker.swift,
 				Conversation/SpeechRecognizer.swift,

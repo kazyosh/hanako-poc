@@ -8,7 +8,7 @@
 import AVFoundation
 
 protocol GreetingSpeaking {
-    func speak(text: String) async
+    func speak(text: String, turnLog: ConversationTurnLog?) async
 }
 
 class GreetingSpeaker: NSObject, GreetingSpeaking {
@@ -16,10 +16,17 @@ class GreetingSpeaker: NSObject, GreetingSpeaking {
     private var continuation: CheckedContinuation<Void, Error>?
     
     /// テキストを音声合成し、再生が終わるまで待機する
-    func speak(text: String) async {
+    func speak(text: String, turnLog: ConversationTurnLog?) async {
+        turnLog?.start(.tts)
+        defer { turnLog?.end(.tts) }
+        
         do {
             try await setupAudioSession()
+            
+            turnLog?.start(.networkTTS)
             let audioData = try await synthesizeSpeech(text: text)
+            turnLog?.end(.networkTTS)
+            
             try await play(audioData: audioData)
         } catch {
             print("音声再生エラー: \(error)")
@@ -77,7 +84,7 @@ class GreetingSpeaker: NSObject, GreetingSpeaking {
             ],
             "voice": [
                 "languageCode": "ja-JP",
-                "name": "ja-JP-Neural2-B",  // 日本語の高品質音声
+                "name": "ja-JP-Neural2-B",
                 "ssmlGender": "FEMALE"
             ],
             "audioConfig": [
@@ -96,7 +103,6 @@ class GreetingSpeaker: NSObject, GreetingSpeaking {
             throw TTSError.apiError(errorText)
         }
         
-        // レスポンスはBase64エンコードされた音声データ
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
               let audioContentBase64 = json["audioContent"] as? String,
               let audioData = Data(base64Encoded: audioContentBase64) else {
@@ -118,3 +124,4 @@ extension GreetingSpeaker: AVAudioPlayerDelegate {
         continuation = nil
     }
 }
+

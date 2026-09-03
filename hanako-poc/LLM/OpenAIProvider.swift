@@ -16,7 +16,7 @@ struct OpenAIProvider: LLMProvider {
         self.model = model
     }
     
-    func generate(messages: [ChatMessage]) async throws -> String {
+    func generate(messages: [ChatMessage], turnLog: ConversationTurnLog?) async throws -> String {
         let url = URL(string: "https://api.openai.com/v1/chat/completions")!
         
         var request = URLRequest(url: url)
@@ -31,8 +31,10 @@ struct OpenAIProvider: LLMProvider {
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
         
+        turnLog?.start(.networkLLM)
         let (data, response) = try await URLSession.shared.data(for: request)
-        
+        turnLog?.end(.networkLLM)
+
         guard let httpResponse = response as? HTTPURLResponse,
               httpResponse.statusCode == 200 else {
             throw LLMError.apiError(String(data: data, encoding: .utf8) ?? "unknown error")

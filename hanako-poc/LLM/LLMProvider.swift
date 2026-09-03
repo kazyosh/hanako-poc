@@ -13,6 +13,6 @@ enum LLMError: Error {
 }
 
 protocol LLMProvider {
-    func generate(messages: [ChatMessage]) async throws -> String
+    func generate(messages: [ChatMessage], turnLog: ConversationTurnLog?) async throws -> String
 }
 

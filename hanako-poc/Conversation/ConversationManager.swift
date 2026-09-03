@@ -13,7 +13,6 @@ class ConversationManager: ObservableObject {
     @Published var messages: [ChatMessage] = []
     @Published var isConversationActive = true
     private var llmProvider: LLMProvider
-    //    private let speechRecognizer = SpeechRecognizer()
     private var speechRecognizer: SpeechRecognizing
     private let speaker: GreetingSpeaking
     private let historyStore = ConversationHistoryStore.shared
@@ -24,7 +23,7 @@ class ConversationManager: ObservableObject {
         self.speaker = speaker
         loadTodaysHistory()
     }
-    
+
     func applySettings(_ settings: AppSettings) {
         speechRecognizer.silenceThreshold = settings.silenceThreshold
         speechRecognizer.endOfSpeechSilenceDuration = settings.endOfSpeechSilenceDuration
@@ -36,10 +35,11 @@ class ConversationManager: ObservableObject {
     }
     
     // 声掛けを開始する(会話のきっかけ)
+    // STTを経由しないため、ターン計測の対象外(turnLog: nil)とする
     func start(prompt: String) async {
         isConversationActive = true
         messages = [ChatMessage(role: .user, content: prompt, isVisible: false)]
-        await respond()
+        await respond(turnLog: nil)
         await beginListeningLoop()
     }
     
@@ -49,11 +49,11 @@ class ConversationManager: ObservableObject {
         guard granted else { return }
         
         try speechRecognizer.startListening(
-            onResult: { [weak self] transcribedText in
+            onResult: { [weak self] transcribedText, turnLog in
                 guard let self else { return }
                 Task {
                     self.messages.append(ChatMessage(role: .user, content: transcribedText))
-                    await self.respond()
+                    await self.respond(turnLog: turnLog)
                     await self.beginListeningLoop()
                 }
             },
@@ -77,12 +77,13 @@ class ConversationManager: ObservableObject {
     }
     
     // 長時間の無音により会話を終了する
+    // システム的な発話のため、ターン計測の対象外(turnLog: nil)とする
     private func endConversation() async {
         guard isConversationActive else { return }
         isConversationActive = false
         let farewell = "また何かあれば声をかけてくださいね"
         messages.append(ChatMessage(role: .assistant, content: farewell))
-        await speaker.speak(text: sanitizeForSpeech(farewell))
+        await speaker.speak(text: sanitizeForSpeech(farewell), turnLog: nil)
     }
     
     func sanitizeForSpeech(_ text: String) -> String {
@@ -115,19 +116,24 @@ class ConversationManager: ObservableObject {
     }
     
     // LLMに送信し、応答を音声で再生
-    private func respond() async {
+    private func respond(turnLog: ConversationTurnLog?) async {
+        turnLog?.start(.llm)
         do {
-            let cleanText = try await llmProvider.generate(messages: messages)
+            let cleanText = try await llmProvider.generate(messages: messages, turnLog: turnLog)
+            turnLog?.end(.llm)
+            
             let sanitized = sanitizeForSpeech(cleanText)
             
             messages.append(ChatMessage(role: .assistant, content: cleanText))
-            await speaker.speak(text: sanitized)
+            await speaker.speak(text: sanitized, turnLog: turnLog)
         } catch {
+            turnLog?.end(.llm)
             print("応答生成エラー: \(error)")
-            await handleResponseError()
+            await handleResponseError(turnLog: turnLog)
         }
         trimHistoryIfNeeded()
         saveHistory()
+        turnLog?.printSummary() // ターンの最後、確実にここでだけ出力される
     }
     
     private func trimHistoryIfNeeded() {
@@ -137,10 +143,10 @@ class ConversationManager: ObservableObject {
         }
     }
 
-    private func handleResponseError() async {
+    private func handleResponseError(turnLog: ConversationTurnLog?) async {
         let fallbackMessage = "ごめんなさい、うまく聞き取れませんでした"
         messages.append(ChatMessage(role: .assistant, content: fallbackMessage))
-        await speaker.speak(text: fallbackMessage)
+        await speaker.speak(text: fallbackMessage, turnLog: turnLog)
     }
 
     // MARK: - 履歴の読み込み・保存

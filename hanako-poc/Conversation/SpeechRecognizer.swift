@@ -3,7 +3,7 @@ import Speech
 protocol SpeechRecognizing {
     func requestAuthorization() async -> Bool
     func startListening(
-        onResult: @escaping (String) -> Void,
+        onResult: @escaping (String, ConversationTurnLog) -> Void,
         onConversationTimeout: @escaping () -> Void
     ) throws
     func stopListening()
@@ -26,10 +26,12 @@ class SpeechRecognizer: NSObject, SpeechRecognizing {
     var conversationTimeoutDuration: TimeInterval = 20.0
     private var conversationTimeoutTimer: Timer?
     
-    private var onResult: ((String) -> Void)?
+    private var onResult: ((String, ConversationTurnLog) -> Void)?
     private var onConversationTimeout: (() -> Void)?
     
-    // 多重起動防止・タップ状態管理
+    // 発話区間の計測用(1発話ごとに生成)
+    private var currentTurnLog: ConversationTurnLog?
+    
     private var isListening = false
     private var isTapInstalled = false
     
@@ -44,10 +46,9 @@ class SpeechRecognizer: NSObject, SpeechRecognizing {
     }
     
     func startListening(
-        onResult: @escaping (String) -> Void,
+        onResult: @escaping (String, ConversationTurnLog) -> Void,
         onConversationTimeout: @escaping () -> Void = {}
     ) throws {
-        // 既にリスニング中なら、まず完全にクリーンアップしてから開始し直す
         if isListening {
             stopListening()
         }
@@ -58,6 +59,7 @@ class SpeechRecognizer: NSObject, SpeechRecognizing {
         silenceTimer?.invalidate()
         silenceTimer = nil
         hasDetectedSpeech = false
+        currentTurnLog = nil
         
         self.onResult = onResult
         self.onConversationTimeout = onConversationTimeout
@@ -75,7 +77,6 @@ class SpeechRecognizer: NSObject, SpeechRecognizing {
         
         let inputNode = audioEngine.inputNode
         
-        // 念のため、タップが残っていれば必ず外してからインストールする
         if isTapInstalled {
             inputNode.removeTap(onBus: 0)
             isTapInstalled = false
@@ -90,9 +91,11 @@ class SpeechRecognizer: NSObject, SpeechRecognizing {
                 print(result.bestTranscription.formattedString)
                 if result.isFinal {
                     let text = result.bestTranscription.formattedString
+                    let log = self?.currentTurnLog
+                    log?.end(.stt)
                     self?.stopListening()
-                    if !text.isEmpty {
-                        self?.onResult?(text)
+                    if !text.isEmpty, let log = log {
+                        self?.onResult?(text, log)
                     }
                 }
             }
@@ -127,6 +130,12 @@ class SpeechRecognizer: NSObject, SpeechRecognizing {
             guard let self = self else { return }
             
             if db > self.silenceThreshold {
+                if !self.hasDetectedSpeech {
+                    // 発話を検知した最初の瞬間 = このターンのログを開始
+                    let log = ConversationTurnLog()
+                    self.currentTurnLog = log
+                    log.start(.stt)
+                }
                 self.hasDetectedSpeech = true
                 self.silenceTimer?.invalidate()
                 self.silenceTimer = nil
