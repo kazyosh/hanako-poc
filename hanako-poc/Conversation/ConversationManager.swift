@@ -35,11 +35,12 @@ class ConversationManager: ObservableObject {
     }
     
     // 声掛けを開始する(会話のきっかけ)
-    // STTを経由しないため、ターン計測の対象外(turnLog: nil)とする
+    // STTは発生しないが、LLM/TTSのコストは計測する
     func start(prompt: String) async {
         isConversationActive = true
+        let turnLog = ConversationTurnLog()
         messages = [ChatMessage(role: .user, content: prompt, isVisible: false)]
-        await respond(turnLog: nil)
+        await respond(turnLog: turnLog)
         await beginListeningLoop()
     }
     
@@ -77,13 +78,23 @@ class ConversationManager: ObservableObject {
     }
     
     // 長時間の無音により会話を終了する
-    // システム的な発話のため、ターン計測の対象外(turnLog: nil)とする
+    // STTは発生しないが、TTSのコストは計測する
     private func endConversation() async {
         guard isConversationActive else { return }
         isConversationActive = false
         let farewell = "また何かあれば声をかけてくださいね"
-        messages.append(ChatMessage(role: .assistant, content: farewell))
-        await speaker.speak(text: sanitizeForSpeech(farewell), turnLog: nil)
+        
+        let turnLog = ConversationTurnLog()
+        let messageID = UUID()
+        messages.append(ChatMessage(id: messageID, role: .assistant, content: farewell))
+        
+        await speaker.speak(text: sanitizeForSpeech(farewell), turnLog: turnLog)
+        
+        if let index = messages.firstIndex(where: { $0.id == messageID }) {
+            messages[index].cost = turnLog.makeTurnCost()
+        }
+        saveHistory()
+        turnLog.printSummary()
     }
     
     func sanitizeForSpeech(_ text: String) -> String {
@@ -123,9 +134,15 @@ class ConversationManager: ObservableObject {
             turnLog?.end(.llm)
             
             let sanitized = sanitizeForSpeech(cleanText)
+            let messageID = UUID()
+            messages.append(ChatMessage(id: messageID, role: .assistant, content: cleanText)) // 即座に表示
             
-            messages.append(ChatMessage(role: .assistant, content: cleanText))
             await speaker.speak(text: sanitized, turnLog: turnLog)
+            
+            // TTS完了後、該当メッセージにコストを追記する
+            if let index = messages.firstIndex(where: { $0.id == messageID }) {
+                messages[index].cost = turnLog?.makeTurnCost()
+            }
         } catch {
             turnLog?.end(.llm)
             print("応答生成エラー: \(error)")
@@ -133,7 +150,7 @@ class ConversationManager: ObservableObject {
         }
         trimHistoryIfNeeded()
         saveHistory()
-        turnLog?.printSummary() // ターンの最後、確実にここでだけ出力される
+        turnLog?.printSummary()
     }
     
     private func trimHistoryIfNeeded() {
@@ -145,8 +162,14 @@ class ConversationManager: ObservableObject {
 
     private func handleResponseError(turnLog: ConversationTurnLog?) async {
         let fallbackMessage = "ごめんなさい、うまく聞き取れませんでした"
-        messages.append(ChatMessage(role: .assistant, content: fallbackMessage))
+        let messageID = UUID()
+        messages.append(ChatMessage(id: messageID, role: .assistant, content: fallbackMessage))
+        
         await speaker.speak(text: fallbackMessage, turnLog: turnLog)
+        
+        if let index = messages.firstIndex(where: { $0.id == messageID }) {
+            messages[index].cost = turnLog?.makeTurnCost()
+        }
     }
 
     // MARK: - 履歴の読み込み・保存

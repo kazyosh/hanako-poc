@@ -7,11 +7,11 @@
 
 import Foundation
 
-struct ClaudeProvider: LLMProvider {
-    let apiKey: String
-    let model: String
+class ClaudeProvider: LLMProvider {
+    private let apiKey: String
+    private let model: String
     
-    init(apiKey: String, model: String = "claude-sonnet-4-6") {
+    init(apiKey: String, model: String = "claude-haiku-4-5") {
         self.apiKey = apiKey
         self.model = model
     }
@@ -25,11 +25,14 @@ struct ClaudeProvider: LLMProvider {
         request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
         request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
         
-        let apiMessages = messages.map { ["role": $0.role.rawValue, "content": $0.content] }
+        // Claudeは system ロールを別フィールドで扱うため、user/assistantのみを抽出する
+        let apiMessages = messages
+            .filter { $0.role == .user || $0.role == .assistant }
+            .map { ["role": $0.role.rawValue, "content": $0.content] }
         
         let body: [String: Any] = [
             "model": model,
-            "max_tokens": 150,
+            "max_tokens": 100,
             "messages": apiMessages
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
@@ -37,18 +40,33 @@ struct ClaudeProvider: LLMProvider {
         turnLog?.start(.networkLLM)
         let (data, response) = try await URLSession.shared.data(for: request)
         turnLog?.end(.networkLLM)
-
-        guard let httpResponse = response as? HTTPURLResponse,
-              httpResponse.statusCode == 200 else {
-            throw LLMError.apiError(String(data: data, encoding: .utf8) ?? "unknown error")
+        
+        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+            let bodyString = String(data: data, encoding: .utf8) ?? ""
+            throw NSError(domain: "ClaudeProvider", code: -1, userInfo: [NSLocalizedDescriptionKey: bodyString])
         }
         
-        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let content = json["content"] as? [[String: Any]],
-              let text = content.first?["text"] as? String else {
-            throw LLMError.invalidResponse
-        }
+        let decoded = try JSONDecoder().decode(MessagesResponse.self, from: data)
         
-        return text.trimmingCharacters(in: .whitespacesAndNewlines)
+        turnLog?.recordLLMUsage(
+            provider: .claude,
+            inputTokens: decoded.usage.input_tokens,
+            outputTokens: decoded.usage.output_tokens
+        )
+        
+        return decoded.content.first(where: { $0.type == "text" })?.text ?? ""
+    }
+    
+    private struct MessagesResponse: Decodable {
+        struct ContentBlock: Decodable {
+            let type: String
+            let text: String?
+        }
+        struct Usage: Decodable {
+            let input_tokens: Int
+            let output_tokens: Int
+        }
+        let content: [ContentBlock]
+        let usage: Usage
     }
 }

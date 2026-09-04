@@ -185,6 +185,11 @@ class GoogleSpeechRecognizer: NSObject, SpeechRecognizing {
         
         guard !capturedAudio.isEmpty, let log = log else { return }
         
+        // LINEAR16, 16kHz, モノラルなので、バイト数から秒数を逆算できる
+        let bytesPerSecond = 16000 * MemoryLayout<Int16>.size // 32000
+        let audioSeconds = Double(capturedAudio.count) / Double(bytesPerSecond)
+        log.recordSTTUsage(audioSeconds: audioSeconds)
+        
         Task { [weak self] in
             guard let self = self else { return }
             do {

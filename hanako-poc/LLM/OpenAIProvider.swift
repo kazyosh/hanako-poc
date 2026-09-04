@@ -7,11 +7,11 @@
 
 import Foundation
 
-struct OpenAIProvider: LLMProvider {
-    let apiKey: String
-    let model: String
+class OpenAIProvider: LLMProvider {
+    private let apiKey: String
+    private let model: String
     
-    init(apiKey: String, model: String = "gpt-4o") {
+    init(apiKey: String, model: String = "gpt-4o-mini") {
         self.apiKey = apiKey
         self.model = model
     }
@@ -34,19 +34,38 @@ struct OpenAIProvider: LLMProvider {
         turnLog?.start(.networkLLM)
         let (data, response) = try await URLSession.shared.data(for: request)
         turnLog?.end(.networkLLM)
-
-        guard let httpResponse = response as? HTTPURLResponse,
-              httpResponse.statusCode == 200 else {
-            throw LLMError.apiError(String(data: data, encoding: .utf8) ?? "unknown error")
+        
+        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+            let bodyString = String(data: data, encoding: .utf8) ?? ""
+            throw NSError(domain: "OpenAIProvider", code: -1, userInfo: [NSLocalizedDescriptionKey: bodyString])
         }
         
-        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let choices = json["choices"] as? [[String: Any]],
-              let message = choices.first?["message"] as? [String: Any],
-              let content = message["content"] as? String else {
-            throw LLMError.invalidResponse
+        let decoded = try JSONDecoder().decode(ChatCompletionResponse.self, from: data)
+        
+        if let usage = decoded.usage {
+            turnLog?.recordLLMUsage(
+                provider: .openAI,
+                inputTokens: usage.prompt_tokens,
+                outputTokens: usage.completion_tokens
+            )
         }
         
-        return content.trimmingCharacters(in: .whitespacesAndNewlines)
+        return decoded.choices.first?.message.content ?? ""
+    }
+    
+    private struct ChatCompletionResponse: Decodable {
+        struct Choice: Decodable {
+            struct Message: Decodable {
+                let content: String
+            }
+            let message: Message
+        }
+        struct Usage: Decodable {
+            let prompt_tokens: Int
+            let completion_tokens: Int
+            let total_tokens: Int
+        }
+        let choices: [Choice]
+        let usage: Usage?
     }
 }

@@ -20,6 +20,8 @@ class GreetingSpeaker: NSObject, GreetingSpeaking {
         turnLog?.start(.tts)
         defer { turnLog?.end(.tts) }
         
+        turnLog?.recordTTSUsage(characterCount: text.count)
+        
         do {
             try await setupAudioSession()
             
