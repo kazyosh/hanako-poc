@@ -32,6 +32,7 @@ class GoogleSpeechRecognizer: NSObject, SpeechRecognizing {
     private var maxRecordingTimer: Timer?
     
     private var onResult: ((String, ConversationTurnLog) -> Void)?
+    private var onNoSpeechDetected: (() -> Void)?
     private var onConversationTimeout: (() -> Void)?
     
     // 発話区間の計測用(1発話ごとに生成)
@@ -51,6 +52,7 @@ class GoogleSpeechRecognizer: NSObject, SpeechRecognizing {
     
     func startListening(
         onResult: @escaping (String, ConversationTurnLog) -> Void,
+        onNoSpeechDetected: @escaping () -> Void = {},
         onConversationTimeout: @escaping () -> Void = {}
     ) throws {
         if isListening {
@@ -65,6 +67,7 @@ class GoogleSpeechRecognizer: NSObject, SpeechRecognizing {
         currentTurnLog = nil
         
         self.onResult = onResult
+        self.onNoSpeechDetected = onNoSpeechDetected
         self.onConversationTimeout = onConversationTimeout
         
         let audioSession = AVAudioSession.sharedInstance()
@@ -93,7 +96,7 @@ class GoogleSpeechRecognizer: NSObject, SpeechRecognizing {
         startConversationTimeoutTimer()
         startMaxRecordingTimer()
     }
-
+    
     // MARK: - 音声フォーマット変換とバッファ蓄積
     
     private func appendConvertedAudio(buffer: AVAudioPCMBuffer) {
@@ -177,18 +180,17 @@ class GoogleSpeechRecognizer: NSObject, SpeechRecognizing {
         RunLoop.main.add(timer, forMode: .common)
         maxRecordingTimer = timer
     }
-
+    
     private func finishListeningAndTranscribe() {
         let capturedAudio = audioBuffer
         let log = currentTurnLog
         stopListening()
         
-        guard !capturedAudio.isEmpty, let log = log else { return }
-        
-        // LINEAR16, 16kHz, モノラルなので、バイト数から秒数を逆算できる
-        let bytesPerSecond = 16000 * MemoryLayout<Int16>.size // 32000
-        let audioSeconds = Double(capturedAudio.count) / Double(bytesPerSecond)
-        log.recordSTTUsage(audioSeconds: audioSeconds)
+        // 音声が無い、あるいは計測ログが無い場合も必ず通知する
+        guard !capturedAudio.isEmpty, let log = log else {
+            onNoSpeechDetected?()
+            return
+        }
         
         Task { [weak self] in
             guard let self = self else { return }
@@ -197,10 +199,15 @@ class GoogleSpeechRecognizer: NSObject, SpeechRecognizing {
                 log.end(.stt)
                 if !text.isEmpty {
                     self.onResult?(text, log)
+                } else {
+                    // STTが空文字列を返した場合も必ず通知する
+                    self.onNoSpeechDetected?()
                 }
             } catch {
                 log.end(.stt)
                 print("Google Cloud STTエラー: \(error)")
+                // STT自体がエラーになった場合も必ず通知する
+                self.onNoSpeechDetected?()
             }
         }
     }

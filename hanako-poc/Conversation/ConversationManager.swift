@@ -8,10 +8,18 @@
 import Foundation
 import Combine
 
+enum ConversationState: Equatable {
+    case idle           // 会話していない(待機中)
+    case listening       // ユーザーの発話を聞いている
+    case thinking         // LLMが応答を生成中
+    case speaking         // TTSで応答を再生中
+}
+
 @MainActor
 class ConversationManager: ObservableObject {
     @Published var messages: [ChatMessage] = []
     @Published var isConversationActive = true
+    @Published var conversationState: ConversationState = .idle
     private var llmProvider: LLMProvider
     private var speechRecognizer: SpeechRecognizing
     private let speaker: GreetingSpeaking
@@ -49,12 +57,20 @@ class ConversationManager: ObservableObject {
         let granted = await speechRecognizer.requestAuthorization()
         guard granted else { return }
         
+        conversationState = .listening  // リスニング開始
         try speechRecognizer.startListening(
             onResult: { [weak self] transcribedText, turnLog in
                 guard let self else { return }
                 Task {
                     self.messages.append(ChatMessage(role: .user, content: transcribedText))
                     await self.respond(turnLog: turnLog)
+                    await self.beginListeningLoop()
+                }
+            },
+            onNoSpeechDetected: { [weak self] in
+                guard let self else { return }
+                Task {
+                    // 何も聞き取れなかった場合は、リスニングを再開して継続する
                     await self.beginListeningLoop()
                 }
             },
@@ -69,11 +85,15 @@ class ConversationManager: ObservableObject {
     
     // リスニングをループさせるための内部ヘルパー
     private func beginListeningLoop() async {
-        guard isConversationActive else { return }
+        guard isConversationActive else {
+            conversationState = .idle  // 会話終了時はidleに戻す
+            return
+        }
         do {
             try await listenAndRespond()
         } catch {
             print("リスニング開始エラー: \(error)")
+            conversationState = .idle
         }
     }
     
@@ -88,6 +108,7 @@ class ConversationManager: ObservableObject {
         let messageID = UUID()
         messages.append(ChatMessage(id: messageID, role: .assistant, content: farewell))
         
+        conversationState = .speaking  // 別れの挨拶を話していることを示す
         await speaker.speak(text: sanitizeForSpeech(farewell), turnLog: turnLog)
         
         if let index = messages.firstIndex(where: { $0.id == messageID }) {
@@ -95,6 +116,7 @@ class ConversationManager: ObservableObject {
         }
         saveHistory()
         turnLog.printSummary()
+        conversationState = .idle
     }
     
     func sanitizeForSpeech(_ text: String) -> String {
@@ -128,6 +150,7 @@ class ConversationManager: ObservableObject {
     
     // LLMに送信し、応答を音声で再生
     private func respond(turnLog: ConversationTurnLog?) async {
+        conversationState = .thinking  // LLM応答生成中
         turnLog?.start(.llm)
         do {
             let cleanText = try await llmProvider.generate(messages: messages, turnLog: turnLog)
@@ -135,11 +158,11 @@ class ConversationManager: ObservableObject {
             
             let sanitized = sanitizeForSpeech(cleanText)
             let messageID = UUID()
-            messages.append(ChatMessage(id: messageID, role: .assistant, content: cleanText)) // 即座に表示
+            messages.append(ChatMessage(id: messageID, role: .assistant, content: cleanText))
             
+            conversationState = .speaking
             await speaker.speak(text: sanitized, turnLog: turnLog)
             
-            // TTS完了後、該当メッセージにコストを追記する
             if let index = messages.firstIndex(where: { $0.id == messageID }) {
                 messages[index].cost = turnLog?.makeTurnCost()
             }
@@ -165,6 +188,7 @@ class ConversationManager: ObservableObject {
         let messageID = UUID()
         messages.append(ChatMessage(id: messageID, role: .assistant, content: fallbackMessage))
         
+        conversationState = .speaking
         await speaker.speak(text: fallbackMessage, turnLog: turnLog)
         
         if let index = messages.firstIndex(where: { $0.id == messageID }) {

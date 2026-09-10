@@ -4,6 +4,7 @@ protocol SpeechRecognizing {
     func requestAuthorization() async -> Bool
     func startListening(
         onResult: @escaping (String, ConversationTurnLog) -> Void,
+        onNoSpeechDetected: @escaping () -> Void,   // 追加
         onConversationTimeout: @escaping () -> Void
     ) throws
     func stopListening()
@@ -27,6 +28,7 @@ class SpeechRecognizer: NSObject, SpeechRecognizing {
     private var conversationTimeoutTimer: Timer?
     
     private var onResult: ((String, ConversationTurnLog) -> Void)?
+    private var onNoSpeechDetected: (() -> Void)?
     private var onConversationTimeout: (() -> Void)?
     
     // 発話区間の計測用(1発話ごとに生成)
@@ -47,6 +49,7 @@ class SpeechRecognizer: NSObject, SpeechRecognizing {
     
     func startListening(
         onResult: @escaping (String, ConversationTurnLog) -> Void,
+        onNoSpeechDetected: @escaping () -> Void = {},
         onConversationTimeout: @escaping () -> Void = {}
     ) throws {
         if isListening {
@@ -62,6 +65,7 @@ class SpeechRecognizer: NSObject, SpeechRecognizing {
         currentTurnLog = nil
         
         self.onResult = onResult
+        self.onNoSpeechDetected = onNoSpeechDetected
         self.onConversationTimeout = onConversationTimeout
         
         let audioSession = AVAudioSession.sharedInstance()
@@ -85,6 +89,11 @@ class SpeechRecognizer: NSObject, SpeechRecognizing {
         recognitionTask = speechRecognizer?.recognitionTask(with: recognitionRequest) { [weak self] result, error in
             if let error = error as NSError? {
                 print("recognitionTask error: domain=\(error.domain), code=\(error.code), description=\(error.localizedDescription)")
+                // エラーで結果が返らなくなった場合も、必ず後続処理に通知する
+                self?.currentTurnLog?.end(.stt)
+                self?.stopListening()
+                self?.onNoSpeechDetected?()
+                return
             }
             
             if let result = result {
@@ -96,6 +105,9 @@ class SpeechRecognizer: NSObject, SpeechRecognizing {
                     self?.stopListening()
                     if !text.isEmpty, let log = log {
                         self?.onResult?(text, log)
+                    } else {
+                        // 空文字列や計測ログ欠落の場合も、必ず通知する
+                        self?.onNoSpeechDetected?()
                     }
                 }
             }

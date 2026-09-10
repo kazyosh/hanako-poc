@@ -32,7 +32,7 @@ let llmOpenAIProvider: LLMProvider = OpenAIProvider(apiKey: AppConfig.openAIAPIK
 
 class Hanako {
     @Published var messages: [ChatMessage] = []
-    @Published var isConversationActive = true
+//    @Published var isConversationActive = true
     var llmProvider = llmClaudeProvider
     static let shared = Hanako()
     let promptBase = """
@@ -68,9 +68,8 @@ class Hanako {
     }
 
     func startGreeting(for greetingTime: GreetingTime) async {
-        guard !isConversationActive || messages.isEmpty else { return }
+        guard !manager.isConversationActive || messages.isEmpty else { return }
         
-        isConversationActive = true
         let prompt = greetingPrompt(for: greetingTime.label)
         messages = [ChatMessage(role: .user, content: prompt, isVisible: false)]
         do {
