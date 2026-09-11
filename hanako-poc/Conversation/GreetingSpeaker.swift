@@ -8,7 +8,7 @@
 import AVFoundation
 
 protocol GreetingSpeaking {
-    func speak(text: String, turnLog: ConversationTurnLog?) async
+    func speak(text: String, voiceName: String, turnLog: ConversationTurnLog?) async
 }
 
 class GreetingSpeaker: NSObject, GreetingSpeaking {
@@ -16,7 +16,7 @@ class GreetingSpeaker: NSObject, GreetingSpeaking {
     private var continuation: CheckedContinuation<Void, Error>?
     
     /// テキストを音声合成し、再生が終わるまで待機する
-    func speak(text: String, turnLog: ConversationTurnLog?) async {
+    func speak(text: String, voiceName: String, turnLog: ConversationTurnLog?) async {
         turnLog?.start(.tts)
         defer { turnLog?.end(.tts) }
         
@@ -26,7 +26,7 @@ class GreetingSpeaker: NSObject, GreetingSpeaking {
             try await setupAudioSession()
             
             turnLog?.start(.networkTTS)
-            let audioData = try await synthesizeSpeech(text: text)
+            let audioData = try await synthesizeSpeech(text: text, voiceName: voiceName)
             turnLog?.end(.networkTTS)
             
             try await play(audioData: audioData)
@@ -69,12 +69,15 @@ class GreetingSpeaker: NSObject, GreetingSpeaking {
         continuation = nil
     }
     
-    func synthesizeSpeech(text: String) async throws -> Data {
+    func synthesizeSpeech(text: String, voiceName: String) async throws -> Data {
         let urlString = "https://texttospeech.googleapis.com/v1/text:synthesize?key=\(AppConfig.ttsAPIKey)"
         
         guard let url = URL(string: urlString) else {
             throw TTSError.invalidResponse
         }
+        
+        // 選択された音声名から性別を判定する(Google TTSはssmlGenderの指定も必要なため)
+        let gender = VoiceOption.all.first(where: { $0.name == voiceName })?.gender ?? "FEMALE"
         
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -86,8 +89,8 @@ class GreetingSpeaker: NSObject, GreetingSpeaking {
             ],
             "voice": [
                 "languageCode": "ja-JP",
-                "name": "ja-JP-Neural2-B",
-                "ssmlGender": "FEMALE"
+                "name": voiceName,
+                "ssmlGender": gender
             ],
             "audioConfig": [
                 "audioEncoding": "MP3",

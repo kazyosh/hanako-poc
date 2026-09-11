@@ -32,7 +32,6 @@
 		15D3312F3047A8350032FD30 /* Exceptions for "hanako-poc" folder in "hanako-pocTests" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				AppSettings.swift,
 				Conversation/ChatMessage.swift,
 				Conversation/ConversationHistoryStore.swift,
 				Conversation/ConversationLogger.swift,
@@ -40,6 +39,7 @@
 				Conversation/GreetingSpeaker.swift,
 				Conversation/SpeechRecognizer.swift,
 				LLM/LLMProvider.swift,
+				Settings/AppSettings.swift,
 			);
 			target = 15D3311B3047A6900032FD30 /* hanako-pocTests */;
 		};

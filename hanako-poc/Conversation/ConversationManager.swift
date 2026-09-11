@@ -24,6 +24,7 @@ class ConversationManager: ObservableObject {
     private var speechRecognizer: SpeechRecognizing
     private let speaker: GreetingSpeaking
     private let historyStore = ConversationHistoryStore.shared
+    private var voiceName: String = VoiceOption.default.name
 
     init(llmProvider: LLMProvider, speechRecognizer: SpeechRecognizing, speaker: GreetingSpeaking) {
         self.llmProvider = llmProvider
@@ -36,6 +37,7 @@ class ConversationManager: ObservableObject {
         speechRecognizer.silenceThreshold = settings.silenceThreshold
         speechRecognizer.endOfSpeechSilenceDuration = settings.endOfSpeechSilenceDuration
         speechRecognizer.conversationTimeoutDuration = settings.conversationTimeoutDuration
+        voiceName = settings.voiceName
     }
     
     func switchProvider(to newProvider: LLMProvider) {
@@ -52,6 +54,11 @@ class ConversationManager: ObservableObject {
         await beginListeningLoop()
     }
     
+    // ConversationManagerに追加
+    func previewVoice(_ voiceName: String) async {
+        await speaker.speak(text: "こんにちは、この声でお話しします", voiceName: voiceName, turnLog: nil)
+    }
+
     // ユーザーの発話を受け取り、会話を継続する
     func listenAndRespond() async throws {
         let granted = await speechRecognizer.requestAuthorization()
@@ -108,8 +115,8 @@ class ConversationManager: ObservableObject {
         let messageID = UUID()
         messages.append(ChatMessage(id: messageID, role: .assistant, content: farewell))
         
-        conversationState = .speaking  // 別れの挨拶を話していることを示す
-        await speaker.speak(text: sanitizeForSpeech(farewell), turnLog: turnLog)
+        conversationState = .speaking
+        await speaker.speak(text: sanitizeForSpeech(farewell), voiceName: voiceName, turnLog: turnLog)
         
         if let index = messages.firstIndex(where: { $0.id == messageID }) {
             messages[index].cost = turnLog.makeTurnCost()
@@ -150,7 +157,7 @@ class ConversationManager: ObservableObject {
     
     // LLMに送信し、応答を音声で再生
     private func respond(turnLog: ConversationTurnLog?) async {
-        conversationState = .thinking  // LLM応答生成中
+        conversationState = .thinking
         turnLog?.start(.llm)
         do {
             let cleanText = try await llmProvider.generate(messages: messages, turnLog: turnLog)
@@ -161,7 +168,7 @@ class ConversationManager: ObservableObject {
             messages.append(ChatMessage(id: messageID, role: .assistant, content: cleanText))
             
             conversationState = .speaking
-            await speaker.speak(text: sanitized, turnLog: turnLog)
+            await speaker.speak(text: sanitized, voiceName: voiceName, turnLog: turnLog)
             
             if let index = messages.firstIndex(where: { $0.id == messageID }) {
                 messages[index].cost = turnLog?.makeTurnCost()
@@ -189,7 +196,7 @@ class ConversationManager: ObservableObject {
         messages.append(ChatMessage(id: messageID, role: .assistant, content: fallbackMessage))
         
         conversationState = .speaking
-        await speaker.speak(text: fallbackMessage, turnLog: turnLog)
+        await speaker.speak(text: fallbackMessage, voiceName: voiceName, turnLog: turnLog)
         
         if let index = messages.firstIndex(where: { $0.id == messageID }) {
             messages[index].cost = turnLog?.makeTurnCost()

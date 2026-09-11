@@ -124,7 +124,18 @@ struct SettingsView: View {
                         }
                     }
                 }
-
+                Section("音声") {
+                    Picker("声の種類", selection: $draft.voiceName) {
+                        ForEach(VoiceOption.all) { voice in
+                            Text(voice.displayName).tag(voice.name)
+                        }
+                    }
+                    Button("この声で試し聞きする") {
+                        Task {
+                            await conversationManager.previewVoice(draft.voiceName)
+                        }
+                    }
+                }
                 Section {
                     Button {
                         Hanako.shared.settings = draft

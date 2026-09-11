@@ -32,7 +32,6 @@ let llmOpenAIProvider: LLMProvider = OpenAIProvider(apiKey: AppConfig.openAIAPIK
 
 class Hanako {
     @Published var messages: [ChatMessage] = []
-//    @Published var isConversationActive = true
     var llmProvider = llmClaudeProvider
     static let shared = Hanako()
     let promptBase = """
@@ -48,6 +47,7 @@ class Hanako {
         didSet {
             settings.save()
             scheduleDailyGreetingTimer()
+            manager.applySettings(settings)
         }
     }
     private var dailyGreetingTimer: Timer?
@@ -58,6 +58,7 @@ class Hanako {
     private init() {
         settings = AppSettings.load()
         scheduleDailyGreetingTimer()
+        manager.applySettings(settings)
     }
     
     func useClaudeAPI() {
