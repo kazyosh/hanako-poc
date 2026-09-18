@@ -31,7 +31,7 @@ struct AppSettings: Codable, Equatable {
         GreetingTime(hour: 12, minute: 0, label: "昼"),
         GreetingTime(hour: 17, minute: 0, label: "夕方")
     ]
-    var voiceName: String = VoiceOption.default.name
+    var voiceName: String = VoiceOptionsLoader.defaultVoice.name
     private static let storageKey = "appSettings"
     
     static func load() -> AppSettings {

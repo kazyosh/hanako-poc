@@ -24,7 +24,7 @@ class ConversationManager: ObservableObject {
     private var speechRecognizer: SpeechRecognizing
     private let speaker: GreetingSpeaking
     private let historyStore = ConversationHistoryStore.shared
-    private var voiceName: String = VoiceOption.default.name
+    private var voiceName: String = VoiceOptionsLoader.defaultVoice.name
 
     init(llmProvider: LLMProvider, speechRecognizer: SpeechRecognizing, speaker: GreetingSpeaking) {
         self.llmProvider = llmProvider

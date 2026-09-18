@@ -77,8 +77,8 @@ class GreetingSpeaker: NSObject, GreetingSpeaking {
         }
         
         // 選択された音声名から性別を判定する(Google TTSはssmlGenderの指定も必要なため)
-        let gender = VoiceOption.all.first(where: { $0.name == voiceName })?.gender ?? "FEMALE"
-        
+        let gender = VoiceOptionsLoader.all.first(where: { $0.name == voiceName })?.gender ?? "FEMALE"
+
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")

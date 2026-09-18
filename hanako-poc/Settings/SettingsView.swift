@@ -126,7 +126,7 @@ struct SettingsView: View {
                 }
                 Section("音声") {
                     Picker("声の種類", selection: $draft.voiceName) {
-                        ForEach(VoiceOption.all) { voice in
+                        ForEach(VoiceOptionsLoader.all) { voice in
                             Text(voice.displayName).tag(voice.name)
                         }
                     }

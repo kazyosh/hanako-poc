@@ -40,6 +40,7 @@
 				Conversation/SpeechRecognizer.swift,
 				LLM/LLMProvider.swift,
 				Settings/AppSettings.swift,
+				Settings/VoiceOptions.json,
 			);
 			target = 15D3311B3047A6900032FD30 /* hanako-pocTests */;
 		};

@@ -1,0 +1,31 @@
+
+{
+  "voices": [
+    {
+      "name": "ja-JP-Neural2-B",
+      "displayName": "はなこ(標準)",
+      "gender": "FEMALE"
+    },
+    {
+      "name": "ja-JP-Neural2-C",
+      "displayName": "たろう(男性)",
+      "gender": "MALE"
+    },
+    {
+      "name": "ja-JP-Neural2-D",
+      "displayName": "けんじ(男性・落ち着いた声)",
+      "gender": "MALE"
+    },
+    {
+      "name": "ja-JP-Wavenet-A",
+      "displayName": "さくら(やわらかい声)",
+      "gender": "FEMALE"
+    },
+    {
+      "name": "ja-JP-Wavenet-B",
+      "displayName": "みゆき(はきはきした声)",
+      "gender": "FEMALE"
+    }
+  ],
+  "defaultVoiceName": "ja-JP-Neural2-B"
+}
