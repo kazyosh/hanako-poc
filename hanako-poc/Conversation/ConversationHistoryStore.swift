@@ -9,7 +9,8 @@ import Foundation
 
 struct ConversationRecord: Codable, Identifiable {
     var id: UUID = UUID()
-    let date: Date // その日を代表する日付(ファイル名のキーにもする)
+    let date: Date
+    let trigger: ConversationTrigger
     var messages: [ChatMessage]
 }
 
@@ -33,18 +34,18 @@ final class ConversationHistoryStore {
         return dir
     }
     
-    private func fileURL(for date: Date) -> URL {
-        let filename = dateFormatter.string(from: date) + ".json"
+    // ファイル名を "日付_トリガー種別.json" にする
+    private func fileURL(for date: Date, trigger: ConversationTrigger) -> URL {
+        let filename = "\(dateFormatter.string(from: date))_\(trigger.rawValue).json"
         return historyDirectory.appendingPathComponent(filename)
     }
     
-    // 指定日の会話を保存する(同じ日のファイルがあれば上書き)
-    func save(messages: [ChatMessage], for date: Date = Date()) {
-        // "その会話が挨拶やシステム的な内容だけ"のような空の保存を避ける
+    // 指定日・指定トリガーの会話を保存する
+    func save(messages: [ChatMessage], for date: Date, trigger: ConversationTrigger) {
         guard !messages.isEmpty else { return }
         
-        let record = ConversationRecord(date: date, messages: messages)
-        let url = fileURL(for: date)
+        let record = ConversationRecord(date: date, trigger: trigger, messages: messages)
+        let url = fileURL(for: date, trigger: trigger)
         
         do {
             let data = try JSONEncoder().encode(record)
@@ -54,14 +55,14 @@ final class ConversationHistoryStore {
         }
     }
     
-    // 指定日の会話を読み込む
-    func load(for date: Date) -> ConversationRecord? {
-        let url = fileURL(for: date)
+    // 指定日・指定トリガーの会話を読み込む
+    func load(for date: Date, trigger: ConversationTrigger) -> ConversationRecord? {
+        let url = fileURL(for: date, trigger: trigger)
         guard let data = try? Data(contentsOf: url) else { return nil }
         return try? JSONDecoder().decode(ConversationRecord.self, from: data)
     }
     
-    // 保存されている全履歴の一覧(日付の新しい順)を返す
+    // 全履歴(日付の新しい順、同日内はトリガーの種類順)を返す
     func loadAllRecords() -> [ConversationRecord] {
         guard let files = try? fileManager.contentsOfDirectory(at: historyDirectory, includingPropertiesForKeys: nil) else {
             return []
@@ -75,9 +76,9 @@ final class ConversationHistoryStore {
         return records.sorted { $0.date > $1.date }
     }
     
-    // 指定日の履歴を削除する
-    func delete(for date: Date) {
-        let url = fileURL(for: date)
+    // 指定日・指定トリガーの履歴を削除する
+    func delete(for date: Date, trigger: ConversationTrigger) {
+        let url = fileURL(for: date, trigger: trigger)
         try? fileManager.removeItem(at: url)
     }
 }

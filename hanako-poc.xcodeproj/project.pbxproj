@@ -36,6 +36,7 @@
 				Conversation/ConversationHistoryStore.swift,
 				Conversation/ConversationLogger.swift,
 				Conversation/ConversationManager.swift,
+				Conversation/ConversationTrigger.swift,
 				Conversation/GreetingSpeaker.swift,
 				Conversation/SpeechRecognizer.swift,
 				LLM/LLMProvider.swift,

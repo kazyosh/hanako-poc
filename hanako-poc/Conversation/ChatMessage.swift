@@ -32,6 +32,7 @@ struct ChatMessage: Codable, Identifiable, Equatable {
     let timestamp: Date
     let isVisible: Bool
     var cost: TurnCost?  // アシスタント応答にのみ付与される
+    var trigger: ConversationTrigger?
 
     init(
         id: UUID = UUID(),
@@ -39,7 +40,8 @@ struct ChatMessage: Codable, Identifiable, Equatable {
         content: String,
         timestamp: Date = Date(),
         isVisible: Bool = true,
-        cost: TurnCost? = nil
+        cost: TurnCost? = nil,
+        trigger: ConversationTrigger? = nil
     ) {
         self.id = id
         self.role = role
@@ -47,5 +49,6 @@ struct ChatMessage: Codable, Identifiable, Equatable {
         self.timestamp = timestamp
         self.isVisible = isVisible
         self.cost = cost
+        self.trigger = trigger
     }
 }

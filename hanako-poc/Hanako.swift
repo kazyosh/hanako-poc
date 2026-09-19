@@ -31,8 +31,8 @@ let llmClaudeProvider: LLMProvider = ClaudeProvider(apiKey: AppConfig.claudeAPIK
 let llmOpenAIProvider: LLMProvider = OpenAIProvider(apiKey: AppConfig.openAIAPIKey)
 
 class Hanako {
-    @Published var messages: [ChatMessage] = []
-    var llmProvider = llmClaudeProvider
+//    @Published var messages: [ChatMessage] = []
+//    var llmProvider = llmClaudeProvider
     static let shared = Hanako()
     let promptBase = """
     ・絵文字は使わない
@@ -69,19 +69,13 @@ class Hanako {
     }
 
     func startGreeting(for greetingTime: GreetingTime) async {
-        guard !manager.isConversationActive || messages.isEmpty else { return }
+        guard !manager.isConversationActive || manager.messages.isEmpty else { return }
         
         let prompt = greetingPrompt(for: greetingTime.label)
-        messages = [ChatMessage(role: .user, content: prompt, isVisible: false)]
-        do {
-            // 1. 挨拶を開始(LLMが最初に話しかける)
-            await manager.start(prompt: "\(promptBase)\n\(prompt)")
-            // 2. ユーザーが返答したら、それを聞き取って会話を継続
-            try await manager.listenAndRespond()
-        }
-        catch {
-            print("エラー: \(error)")
-        }
+        await manager.start(
+            prompt: "\(promptBase)\n\(prompt)",
+            trigger: ConversationTrigger.from(greetingTime: greetingTime)
+        )
     }
 
     private func greetingPrompt(for label: String) -> String {
@@ -90,7 +84,7 @@ class Hanako {
             return settings.morningPrompt
         case "昼":
             return settings.afternoonPrompt
-        case "夕方":
+        case "夕":
             return settings.eveningPrompt
         default:
             return settings.afternoonPrompt

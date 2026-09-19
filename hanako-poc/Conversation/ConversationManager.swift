@@ -25,12 +25,15 @@ class ConversationManager: ObservableObject {
     private let speaker: GreetingSpeaking
     private let historyStore = ConversationHistoryStore.shared
     private var voiceName: String = VoiceOptionsLoader.defaultVoice.name
-
+    // 現在進行中の会話がどのトリガーによるものかを保持
+    private var currentTrigger: ConversationTrigger = .userInitiated
+    
     init(llmProvider: LLMProvider, speechRecognizer: SpeechRecognizing, speaker: GreetingSpeaking) {
         self.llmProvider = llmProvider
         self.speechRecognizer = speechRecognizer
         self.speaker = speaker
-        loadTodaysHistory()
+        // 起動時点では「今日のユーザー発話」を復元する(要件に応じて変更可)
+        loadHistory(trigger: .userInitiated)
     }
 
     func applySettings(_ settings: AppSettings) {
@@ -46,11 +49,14 @@ class ConversationManager: ObservableObject {
     
     // 声掛けを開始する(会話のきっかけ)
     // STTは発生しないが、LLM/TTSのコストは計測する
-    func start(prompt: String) async {
+    func start(prompt: String, trigger: ConversationTrigger) async {
         isConversationActive = true
+        currentTrigger = trigger
+        loadHistory(trigger: trigger)  // このトリガー種別の今日の履歴があれば復元
+        
         let turnLog = ConversationTurnLog()
-        messages = [ChatMessage(role: .user, content: prompt, isVisible: false)]
-        await respond(turnLog: turnLog)
+        messages.append(ChatMessage(role: .user, content: prompt, isVisible: false, trigger: trigger))
+        await respond(turnLog: turnLog, trigger: trigger)
         await beginListeningLoop()
     }
     
@@ -64,20 +70,19 @@ class ConversationManager: ObservableObject {
         let granted = await speechRecognizer.requestAuthorization()
         guard granted else { return }
         
-        conversationState = .listening  // リスニング開始
+        conversationState = .listening
         try speechRecognizer.startListening(
             onResult: { [weak self] transcribedText, turnLog in
                 guard let self else { return }
                 Task {
-                    self.messages.append(ChatMessage(role: .user, content: transcribedText))
-                    await self.respond(turnLog: turnLog)
+                    self.messages.append(ChatMessage(role: .user, content: transcribedText, trigger: self.currentTrigger))
+                    await self.respond(turnLog: turnLog, trigger: self.currentTrigger)
                     await self.beginListeningLoop()
                 }
             },
             onNoSpeechDetected: { [weak self] in
                 guard let self else { return }
                 Task {
-                    // 何も聞き取れなかった場合は、リスニングを再開して継続する
                     await self.beginListeningLoop()
                 }
             },
@@ -93,7 +98,7 @@ class ConversationManager: ObservableObject {
     // リスニングをループさせるための内部ヘルパー
     private func beginListeningLoop() async {
         guard isConversationActive else {
-            conversationState = .idle  // 会話終了時はidleに戻す
+            conversationState = .idle
             return
         }
         do {
@@ -113,7 +118,7 @@ class ConversationManager: ObservableObject {
         
         let turnLog = ConversationTurnLog()
         let messageID = UUID()
-        messages.append(ChatMessage(id: messageID, role: .assistant, content: farewell))
+        messages.append(ChatMessage(id: messageID, role: .assistant, content: farewell, trigger: currentTrigger))
         
         conversationState = .speaking
         await speaker.speak(text: sanitizeForSpeech(farewell), voiceName: voiceName, turnLog: turnLog)
@@ -156,7 +161,7 @@ class ConversationManager: ObservableObject {
     }
     
     // LLMに送信し、応答を音声で再生
-    private func respond(turnLog: ConversationTurnLog?) async {
+    private func respond(turnLog: ConversationTurnLog?, trigger: ConversationTrigger) async {
         conversationState = .thinking
         turnLog?.start(.llm)
         do {
@@ -165,7 +170,7 @@ class ConversationManager: ObservableObject {
             
             let sanitized = sanitizeForSpeech(cleanText)
             let messageID = UUID()
-            messages.append(ChatMessage(id: messageID, role: .assistant, content: cleanText))
+            messages.append(ChatMessage(id: messageID, role: .assistant, content: cleanText, trigger: trigger))
             
             conversationState = .speaking
             await speaker.speak(text: sanitized, voiceName: voiceName, turnLog: turnLog)
@@ -176,7 +181,7 @@ class ConversationManager: ObservableObject {
         } catch {
             turnLog?.end(.llm)
             print("応答生成エラー: \(error)")
-            await handleResponseError(turnLog: turnLog)
+            await handleResponseError(turnLog: turnLog)  // trigger は渡さず、内部で.noResponseにする
         }
         trimHistoryIfNeeded()
         saveHistory()
@@ -193,7 +198,7 @@ class ConversationManager: ObservableObject {
     private func handleResponseError(turnLog: ConversationTurnLog?) async {
         let fallbackMessage = "ごめんなさい、うまく聞き取れませんでした"
         let messageID = UUID()
-        messages.append(ChatMessage(id: messageID, role: .assistant, content: fallbackMessage))
+        messages.append(ChatMessage(id: messageID, role: .assistant, content: fallbackMessage, trigger: .noResponse))
         
         conversationState = .speaking
         await speaker.speak(text: fallbackMessage, voiceName: voiceName, turnLog: turnLog)
@@ -202,16 +207,17 @@ class ConversationManager: ObservableObject {
             messages[index].cost = turnLog?.makeTurnCost()
         }
     }
-
     // MARK: - 履歴の読み込み・保存
     
-    private func loadTodaysHistory() {
-        if let record = historyStore.load(for: Date()) {
+    private func loadHistory(trigger: ConversationTrigger) {
+        if let record = historyStore.load(for: Date(), trigger: trigger) {
             messages = record.messages
+        } else {
+            messages = []
         }
     }
     
     private func saveHistory() {
-        historyStore.save(messages: messages, for: Date())
+        historyStore.save(messages: messages, for: Date(), trigger: currentTrigger)
     }
 }

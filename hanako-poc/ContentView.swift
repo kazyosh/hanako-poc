@@ -24,7 +24,7 @@ struct Checkbox: View {
 }
 
 struct ContentView: View {
-    @ObservedObject private var conversationManager = Hanako.shared.manager  // 追加
+    @ObservedObject private var conversationManager = Hanako.shared.manager
     @State private var morningPrompt = Hanako.shared.settings.morningPrompt
     @State private var afternoonPrompt = Hanako.shared.settings.afternoonPrompt
     @State private var eveningPrompt = Hanako.shared.settings.eveningPrompt
@@ -56,11 +56,10 @@ struct ContentView: View {
                                 text: $morningPrompt,
                                 axis: .vertical
                             )
+                            .onSubmit { savePrompts() }
                         }
                         Button {
-                            var settings = Hanako.shared.settings
-                            settings.morningPrompt = morningPrompt
-                            settings.save()
+                            savePrompts()
                             talkRightNow(timeOfDay: .morning)
                         } label: {
                             Text("今話す")
@@ -73,12 +72,10 @@ struct ContentView: View {
                                 text: $afternoonPrompt,
                                 axis: .vertical
                             )
-
+                            .onSubmit { savePrompts() }
                         }
                         Button {
-                            var settings = Hanako.shared.settings
-                            settings.afternoonPrompt = afternoonPrompt
-                            settings.save()
+                            savePrompts()
                             talkRightNow(timeOfDay: .afternoon)
                         } label: {
                             Text("今話す")
@@ -91,11 +88,10 @@ struct ContentView: View {
                                 text: $eveningPrompt,
                                 axis: .vertical
                             )
+                            .onSubmit { savePrompts() }
                         }
                         Button {
-                            var settings = Hanako.shared.settings
-                            settings.eveningPrompt = eveningPrompt
-                            settings.save()
+                            savePrompts()
                             talkRightNow(timeOfDay: .evening)
                         } label: {
                             Text("今話す")
@@ -126,7 +122,19 @@ struct ContentView: View {
             .sheet(isPresented: $isShowingSettings) {
                 SettingsView(conversationManager: conversationManager)
             }
+            .onDisappear {
+                savePrompts()
+            }
         }
+    }
+    
+    // 3つのプロンプトをまとめてHanako.shared.settingsへ反映する
+    private func savePrompts() {
+        var newSettings = Hanako.shared.settings
+        newSettings.morningPrompt = morningPrompt
+        newSettings.afternoonPrompt = afternoonPrompt
+        newSettings.eveningPrompt = eveningPrompt
+        Hanako.shared.settings = newSettings  // didSetでsave() + 各種反映が自動的に走る
     }
     
     func talkRightNow(timeOfDay: TimeOfDay) {
